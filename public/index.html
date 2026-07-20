@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Script Executor Panel</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            margin: 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 700px;
+        }
+        h1 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            color: #00e676;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            background-color: #1e1e1e;
+            color: #76ff03;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        button {
+            margin-top: 1rem;
+            width: 100%;
+            padding: 12px;
+            background-color: #00e676;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #00c853;
+        }
+        #status {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Script Execution Control Panel</h1>
+        <textarea id="code" placeholder="-- Paste your Lua script here...&#10;print('Hello from remote server!')"></textarea>
+        <button onclick="sendScript()">Execute Script</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        async function sendScript() {
+            const code = document.getElementById('code').value;
+            const statusText = document.getElementById('status');
+            
+            if (!code.trim()) {
+                statusText.innerText = 'Please enter code before sending.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/send-script', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    statusText.innerText = 'Status: Script queued for execution!';
+                    statusText.style.color = '#00e676';
+                } else {
+                    statusText.innerText = 'Status: Failed to queue script.';
+                    statusText.style.color = '#ff5252';
+                }
+            } catch (err) {
+                statusText.innerText = 'Status: Error connecting to backend.';
+                statusText.style.color = '#ff5252';
+            }
+        }
+    </script>
+</body>
+</html>
