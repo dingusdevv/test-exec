@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remote Script Executor Panel</title>
+    <title>Remote Control & Console Panel</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -17,16 +17,15 @@
         }
         .container {
             width: 100%;
-            max-width: 700px;
+            max-width: 800px;
         }
-        h1 {
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
+        h1, h2 {
+            margin-bottom: 0.5rem;
             color: #00e676;
         }
         textarea {
             width: 100%;
-            height: 300px;
+            height: 200px;
             background-color: #1e1e1e;
             color: #76ff03;
             border: 1px solid #333;
@@ -38,7 +37,8 @@
             resize: vertical;
         }
         button {
-            margin-top: 1rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1.5rem;
             width: 100%;
             padding: 12px;
             background-color: #00e676;
@@ -48,24 +48,35 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 1rem;
-            transition: background 0.2s;
         }
-        button:hover {
-            background-color: #00c853;
+        #console-output {
+            width: 100%;
+            height: 250px;
+            background-color: #0a0a0a;
+            color: #cccccc;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            white-space: pre-wrap;
         }
-        #status {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #888;
-        }
+        .log-WARN { color: #ffca28; }
+        .log-ERROR { color: #ff5252; }
+        .log-INFO { color: #81d4fa; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Script Execution Control Panel</h1>
-        <textarea id="code" placeholder="-- Paste your Lua script here...&#10;print('Hello from remote server!')"></textarea>
+        <h1>Script Execution Panel</h1>
+        <textarea id="code" placeholder="-- Paste Lua script here..."></textarea>
         <button onclick="sendScript()">Execute Script</button>
         <p id="status"></p>
+
+        <h2>Live Console Output</h2>
+        <div id="console-output">Awaiting console logs...</div>
     </div>
 
     <script>
@@ -73,10 +84,7 @@
             const code = document.getElementById('code').value;
             const statusText = document.getElementById('status');
             
-            if (!code.trim()) {
-                statusText.innerText = 'Please enter code before sending.';
-                return;
-            }
+            if (!code.trim()) return;
 
             try {
                 const response = await fetch('/api/send-script', {
@@ -86,18 +94,38 @@
                 });
 
                 const data = await response.json();
-                if (data.success) {
-                    statusText.innerText = 'Status: Script queued for execution!';
-                    statusText.style.color = '#00e676';
-                } else {
-                    statusText.innerText = 'Status: Failed to queue script.';
-                    statusText.style.color = '#ff5252';
-                }
+                statusText.innerText = data.success ? 'Script queued!' : 'Failed to queue script.';
             } catch (err) {
-                statusText.innerText = 'Status: Error connecting to backend.';
-                statusText.style.color = '#ff5252';
+                statusText.innerText = 'Error connecting to backend.';
             }
         }
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const data = await response.json();
+                
+                if (data.logs) {
+                    const consoleElement = document.getElementById('console-output');
+                    consoleElement.innerHTML = data.logs.map(log => {
+                        let className = 'log-INFO';
+                        if (log.includes('[WARN]')) className = 'log-WARN';
+                        if (log.includes('[ERROR]')) className = 'log-ERROR';
+                        return `<div class="${className}">${escapeHtml(log)}</div>`;
+                    }).join('');
+                    
+                    consoleElement.scrollTop = consoleElement.scrollHeight;
+                }
+            } catch (err) {
+                console.error("Log fetch failed", err);
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        setInterval(fetchLogs, 1000);
     </script>
 </body>
 </html>
