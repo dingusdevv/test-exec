@@ -3,94 +3,563 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remote Control & Console Panel</title>
+    <title>Execution Panel</title>
+    
+    <!-- CodeMirror Core CSS & Lua Mode -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    
     <style>
-        body {
+        /* Base Reset & Fullscreen Setup */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body, html {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #121212;
             color: #ffffff;
+        }
+
+        /* Fullscreen Main Application Window */
+        .app-window {
+            width: 100%;
+            height: 100%;
+            background-color: #333333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header (Top Bar) */
+        .header {
+            height: 40px;
+            background-color: #2b3a8c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        
+        .header-title {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .header-close {
+            font-size: 16px;
+            cursor: pointer;
+            color: #dddddd;
+        }
+        
+        .header-close:hover {
+            color: #ffffff;
+        }
+
+        /* Middle Layout Container */
+        .content-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            background-color: #2b2b2b;
+        }
+
+        /* Left Sidebar Icons */
+        .sidebar {
+            width: 55px;
+            background-color: #272727;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 2rem;
-            margin: 0;
+            padding-top: 15px;
+            gap: 20px;
+            border-right: 1px solid #1f1f1f;
+            flex-shrink: 0;
+            z-index: 10;
         }
-        .container {
+        
+        .sidebar-icon {
             width: 100%;
-            max-width: 800px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #aaaaaa;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 5px 0;
         }
-        h1, h2 {
-            margin-bottom: 0.5rem;
-            color: #00e676;
+        
+        .sidebar-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
         }
-        textarea {
+        
+        .sidebar-icon:hover, .sidebar-icon.active { 
+            color: #ffffff; 
+        }
+
+        /* Main View Container */
+        .view-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #333333;
+            overflow: hidden;
+        }
+
+        .view {
+            display: none;
+            flex-direction: column;
             width: 100%;
-            height: 200px;
-            background-color: #1e1e1e;
-            color: #76ff03;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 1rem;
+            height: 100%;
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        /* Page Titles */
+        .page-content {
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 300;
+            margin-bottom: 12px;
+            color: #eeeeee;
+        }
+
+        /* Editor Tabs */
+        .tabs {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 0;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+        
+        .tabs::-webkit-scrollbar { height: 4px; }
+        .tabs::-webkit-scrollbar-thumb { background: #555; }
+
+        .tab {
+            background-color: #444444;
+            color: #aaaaaa;
+            padding: 6px 14px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background-color: #555555;
+            color: #ffffff;
+        }
+        
+        .tab-close {
+            font-size: 10px;
+            cursor: pointer;
+            padding: 2px;
+        }
+        .tab-close:hover { color: #ff5252; }
+        
+        .tab-add {
+            background-color: transparent;
+            border: 1px solid #666;
+            color: #cccccc;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 2px;
+            flex-shrink: 0;
+        }
+        .tab-add:hover { background-color: #555; }
+
+        /* CodeMirror Editor Overrides */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #1a1a1a;
+            box-shadow: inset 0px 0px 5px rgba(0,0,0,0.3);
+            overflow: hidden;
+            background-color: #252525;
+        }
+
+        .CodeMirror {
+            flex: 1;
+            height: 100%;
+            background-color: transparent !important;
+            color: #e0e0e0;
             font-family: 'Courier New', Courier, monospace;
             font-size: 14px;
-            box-sizing: border-box;
-            resize: vertical;
+            line-height: 1.4;
         }
-        button {
-            margin-top: 0.5rem;
-            margin-bottom: 1.5rem;
-            width: 100%;
-            padding: 12px;
-            background-color: #00e676;
-            color: #000;
-            font-weight: bold;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
+        
+        .CodeMirror-gutters {
+            background-color: #252525 !important;
+            border-right: 1px solid #333 !important;
+            padding-right: 5px;
         }
+
+        .CodeMirror-linenumber { color: #888 !important; }
+        .CodeMirror-cursor { border-left: 2px solid #fff !important; }
+
+        /* Lua Syntax Colors */
+        .cm-s-default .cm-keyword { color: #569cd6; } 
+        .cm-s-default .cm-string { color: #ce9178; } 
+        .cm-s-default .cm-number { color: #b5cea8; } 
+        .cm-s-default .cm-builtin { color: #4ec9b0; } 
+        .cm-s-default .cm-comment { color: #6a9955; font-style: italic; } 
+        .cm-s-default .cm-operator { color: #d4d4d4; } 
+        .cm-s-default .cm-def { color: #dcdcaa; } 
+
+        /* Logs Console */
         #console-output {
-            width: 100%;
-            height: 250px;
-            background-color: #0a0a0a;
+            flex: 1;
+            background-color: #0a0a0a; 
             color: #cccccc;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 1rem;
+            border: 1px solid #111;
+            border-radius: 4px;
+            padding: 12px;
             font-family: 'Courier New', Courier, monospace;
             font-size: 13px;
-            box-sizing: border-box;
             overflow-y: auto;
             white-space: pre-wrap;
+            box-shadow: inset 0px 4px 10px rgba(0,0,0,0.5);
         }
-        .log-WARN { color: #ffca28; }
-        .log-ERROR { color: #ff5252; }
-        .log-INFO { color: #81d4fa; }
+
+        /* Bottom Action Buttons */
+        .bottom-bar {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            background-color: #333333;
+            border-top: 1px solid #1f1f1f;
+            flex-shrink: 0;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+        
+        button.action-btn {
+            background-color: #4a4a4a;
+            color: #ffffff;
+            border: 1px solid #222;
+            padding: 10px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button.action-btn:hover { background-color: #555555; }
+        button.action-btn:active { background-color: #3a3a3a; }
+
+        .btn-execute {
+            background-color: #00e676 !important; 
+            color: #000 !important;
+            font-weight: bold;
+        }
+        .btn-execute:hover { background-color: #00c853 !important; }
+
+        .log-WARN { color: #ffca28; margin-bottom: 4px; }
+        .log-ERROR { color: #ff5252; margin-bottom: 4px; }
+        .log-INFO { color: #81d4fa; margin-bottom: 4px; }
+        
+        #status { display: none; }
+        .placeholder-text { color: #888; font-style: italic; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Script Execution Panel</h1>
-        <textarea id="code" placeholder="-- Paste Lua script here..."></textarea>
-        <button onclick="sendScript()">Execute Script</button>
-        <p id="status"></p>
+    <!-- Hidden File Inputs for Load/Execute -->
+    <input type="file" id="fileInputOpen" style="display: none;" accept=".txt,.lua">
+    <input type="file" id="fileInputExecute" style="display: none;" accept=".txt,.lua">
 
-        <h2>Live Console Output</h2>
-        <div id="console-output">Awaiting console logs...</div>
+    <div class="app-window">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">
+                <svg viewBox="0 0 100 100">
+                    <polygon points="20,80 50,20 80,80" fill="#3498db"/>
+                    <polygon points="50,20 80,80 20,80" fill="rgba(0,0,0,0.2)"/>
+                </svg>
+                EXECUTOR
+            </div>
+            <div class="header-close">✕</div>
+        </div>
+
+        <div class="content-wrapper">
+            <!-- Left Sidebar -->
+            <div class="sidebar">
+                <!-- Execution View Button -->
+                <div class="sidebar-icon active" onclick="switchView('view-execution', this)" title="Execution">
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </div>
+                <!-- Script Hub View Button -->
+                <div class="sidebar-icon" onclick="switchView('view-scripthub', this)" title="Script Hub">
+                    <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                </div>
+                <!-- Console View Button -->
+                <div class="sidebar-icon" style="font-weight: 700; font-size: 16px; font-family: monospace;" onclick="switchView('view-console', this)" title="Console">
+                    &lt;/&gt;
+                </div>
+                <!-- Settings View Button -->
+                <div class="sidebar-icon" onclick="switchView('view-settings', this)" title="Settings">
+                    <svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+                </div>
+            </div>
+
+            <!-- Views Container -->
+            <div class="view-container">
+                
+                <!-- 1. Execution View -->
+                <div id="view-execution" class="view active">
+                    <div class="page-content">
+                        <div class="page-title">Execution</div>
+                        
+                        <div class="tabs" id="tab-container">
+                            <!-- Tabs injected via JS -->
+                        </div>
+
+                        <div class="editor-container">
+                            <textarea id="code"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="bottom-bar">
+                        <div class="button-group">
+                            <button class="action-btn btn-execute" onclick="sendScript()">Execute</button>
+                            <button class="action-btn" onclick="clearEditor()">Clear</button>
+                            <button class="action-btn" onclick="document.getElementById('fileInputOpen').click()">Open File</button>
+                            <button class="action-btn" onclick="document.getElementById('fileInputExecute').click()">Execute File</button>
+                            <button class="action-btn" onclick="saveFile()">Save File</button>
+                        </div>
+                        <div class="button-group">
+                            <button class="action-btn">Attach</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Script Hub View -->
+                <div id="view-scripthub" class="view">
+                    <div class="page-content">
+                        <div class="page-title">Script Hub</div>
+                        <p class="placeholder-text">Script Hub feature to be implemented...</p>
+                    </div>
+                </div>
+
+                <!-- 3. Console View -->
+                <div id="view-console" class="view">
+                    <div class="page-content">
+                        <div class="page-title">Live Console Output</div>
+                        <div id="console-output">Awaiting console logs...</div>
+                    </div>
+                </div>
+
+                <!-- 4. Settings View -->
+                <div id="view-settings" class="view">
+                    <div class="page-content">
+                        <div class="page-title">Settings</div>
+                        <p class="placeholder-text">Settings feature to be implemented...</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <p id="status"></p>
     </div>
 
+    <!-- CodeMirror JS & Lua Mode -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/lua/lua.min.js"></script>
+
     <script>
-        async function sendScript() {
-            const code = document.getElementById('code').value;
-            const statusText = document.getElementById('status');
+        /* =====================================================================
+           UI View Switching Logic
+           ===================================================================== */
+        function switchView(viewId, iconElement) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
             
-            if (!code.trim()) return;
+            document.querySelectorAll('.sidebar-icon').forEach(i => i.classList.remove('active'));
+            iconElement.classList.add('active');
+
+            // CodeMirror needs a refresh if its container goes from display:none to block
+            if (viewId === 'view-execution') {
+                setTimeout(() => editor.refresh(), 10);
+            }
+        }
+
+        /* =====================================================================
+           Tab System Logic
+           ===================================================================== */
+        let scriptTabs = [
+            { id: 1, name: "Script 1", content: "-- Paste Lua script here...\nprint('Loaded')" }
+        ];
+        let activeTabId = 1;
+        let tabCounter = 1;
+
+        // Initialize CodeMirror Editor
+        var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+            lineNumbers: true,
+            mode: "lua",
+            theme: "default",
+            indentUnit: 4,
+            matchBrackets: true
+        });
+
+        // Save typed content to the active tab's memory automatically
+        editor.on('change', () => {
+            let activeTab = scriptTabs.find(t => t.id === activeTabId);
+            if (activeTab) {
+                activeTab.content = editor.getValue();
+            }
+        });
+
+        function renderTabs() {
+            const container = document.getElementById('tab-container');
+            container.innerHTML = ''; // Clear tabs
+
+            scriptTabs.forEach(tab => {
+                const tabEl = document.createElement('div');
+                tabEl.className = `tab ${tab.id === activeTabId ? 'active' : ''}`;
+                tabEl.innerHTML = `
+                    <span onclick="switchTab(${tab.id})">${tab.name}</span>
+                    <span class="tab-close" onclick="closeTab(${tab.id}, event)">✕</span>
+                `;
+                container.appendChild(tabEl);
+            });
+
+            // Add new tab button
+            const addBtn = document.createElement('div');
+            addBtn.className = 'tab-add';
+            addBtn.innerText = '＋';
+            addBtn.onclick = addTab;
+            container.appendChild(addBtn);
+        }
+
+        function switchTab(id) {
+            activeTabId = id;
+            const activeTab = scriptTabs.find(t => t.id === activeTabId);
+            if (activeTab) {
+                editor.setValue(activeTab.content);
+            }
+            renderTabs();
+        }
+
+        function addTab() {
+            tabCounter++;
+            const newTab = { id: tabCounter, name: `Script ${tabCounter}`, content: "" };
+            scriptTabs.push(newTab);
+            switchTab(newTab.id);
+        }
+
+        function closeTab(id, event) {
+            event.stopPropagation();
+            if (scriptTabs.length === 1) return; // Prevent closing the very last tab
+            
+            scriptTabs = scriptTabs.filter(t => t.id !== id);
+            
+            // If we closed the active tab, switch to the last one available
+            if (activeTabId === id) {
+                switchTab(scriptTabs[scriptTabs.length - 1].id);
+            } else {
+                renderTabs();
+            }
+        }
+
+        function clearEditor() {
+            editor.setValue("");
+        }
+
+        /* =====================================================================
+           File Operation Logic (Open, Execute File, Save)
+           ===================================================================== */
+        
+        // Open File
+        document.getElementById('fileInputOpen').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                editor.setValue(event.target.result);
+                // Optionally update tab name to file name:
+                let activeTab = scriptTabs.find(t => t.id === activeTabId);
+                if (activeTab) activeTab.name = file.name;
+                renderTabs();
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Reset input
+        });
+
+        // Execute File Directly
+        document.getElementById('fileInputExecute').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const code = event.target.result;
+                executeRawScript(code);
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // Reset input
+        });
+
+        // Save File (Downloads current editor content)
+        function saveFile() {
+            const code = editor.getValue();
+            const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            let activeTab = scriptTabs.find(t => t.id === activeTabId);
+            link.download = (activeTab && activeTab.name.includes('.')) ? activeTab.name : (activeTab.name + ".lua");
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        /* =====================================================================
+           Backend Communication (Execute & Logs)
+           ===================================================================== */
+        
+        async function executeRawScript(codeText) {
+            const statusText = document.getElementById('status');
+            if (!codeText.trim()) return;
 
             try {
                 const response = await fetch('/api/send-script', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code })
+                    body: JSON.stringify({ code: codeText })
                 });
 
                 const data = await response.json();
@@ -100,12 +569,17 @@
             }
         }
 
+        // Wrapper for main Execute button
+        function sendScript() {
+            executeRawScript(editor.getValue());
+        }
+
         async function fetchLogs() {
             try {
                 const response = await fetch('/api/logs');
                 const data = await response.json();
                 
-                if (data.logs) {
+                if (data.logs && data.logs.length > 0) {
                     const consoleElement = document.getElementById('console-output');
                     consoleElement.innerHTML = data.logs.map(log => {
                         let className = 'log-INFO';
@@ -125,6 +599,9 @@
             return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
+        // Initialize App
+        renderTabs();
+        switchTab(1);
         setInterval(fetchLogs, 1000);
     </script>
 </body>
